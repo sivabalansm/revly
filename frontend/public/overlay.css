@@ -1,0 +1,288 @@
+/* ============================================================
+   OBS Browser Source Overlay — Base Styles
+   ============================================================
+   RULES:
+   - NEVER use `opacity` property (broken in OBS Chromium, forced to 1.0)
+   - ALWAYS use `filter: opacity()` instead
+   - ONLY animate `transform` and `filter` (GPU-accelerated)
+   - NEVER animate width, height, top, left (triggers layout reflow)
+   ============================================================ */
+
+/* --- Mandatory transparency --- */
+html, body {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  width: 1920px;
+  height: 1080px;
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* --- Containers --- */
+#ad-container {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+}
+
+#detection-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* --- Ad slots (all formats) --- */
+.ad-slot {
+  position: absolute;
+  will-change: transform, filter;
+  pointer-events: none;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.ad-slot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Format-specific styles
+   ============================================================ */
+
+/* Corner Logo — clean, no decoration */
+.ad-corner-logo {
+  /* No background, just the image */
+}
+
+/* Popup — card with shadow and rounded corners */
+.ad-popup {
+  background: rgba(18, 18, 24, 0.92);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ad-popup img {
+  border-radius: 6px;
+}
+
+/* Lower Third — broadcast bar */
+.ad-lower-third {
+  background: linear-gradient(135deg, rgba(18, 18, 24, 0.92) 0%, rgba(30, 30, 45, 0.88) 100%);
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  padding: 8px 16px;
+  border-left: 4px solid #6366f1;
+  display: flex;
+  align-items: center;
+}
+
+.ad-lower-third img {
+  border-radius: 4px;
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+}
+
+/* Banner — full-width strip */
+.ad-banner {
+  background: linear-gradient(90deg, rgba(18, 18, 24, 0.9) 0%, rgba(30, 30, 45, 0.85) 50%, rgba(18, 18, 24, 0.9) 100%);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.ad-banner img {
+  height: 90%;
+  width: auto;
+  object-fit: contain;
+}
+
+/* Ticker — scrolling strip */
+.ad-ticker {
+  background: rgba(18, 18, 24, 0.85);
+  border-top: 2px solid #6366f1;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.ad-ticker .ticker-track {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: tickerScroll 20s linear infinite;
+}
+
+.ad-ticker img {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  margin: 0 40px;
+}
+
+/* Takeover — full overlay moment */
+.ad-takeover {
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 16px;
+  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  /* Use filter instead of backdrop-filter for OBS compat */
+}
+
+.ad-takeover img {
+  border-radius: 12px;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ============================================================
+   Enter Animations
+   ============================================================ */
+
+@keyframes fadeScaleIn {
+  from { transform: scale(0.8); filter: opacity(0%); }
+  to   { transform: scale(1);   filter: opacity(100%); }
+}
+
+@keyframes fadeScaleOut {
+  from { transform: scale(1);   filter: opacity(100%); }
+  to   { transform: scale(0.8); filter: opacity(0%); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(40px); filter: opacity(0%); }
+  to   { transform: translateX(0);    filter: opacity(100%); }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0);    filter: opacity(100%); }
+  to   { transform: translateX(40px); filter: opacity(0%); }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-40px); filter: opacity(0%); }
+  to   { transform: translateX(0);     filter: opacity(100%); }
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0);     filter: opacity(100%); }
+  to   { transform: translateX(-40px); filter: opacity(0%); }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); filter: opacity(0%); }
+  to   { transform: translateY(0);     filter: opacity(100%); }
+}
+
+@keyframes slideDownOut {
+  from { transform: translateY(0);     filter: opacity(100%); }
+  to   { transform: translateY(-100%); filter: opacity(0%); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); filter: opacity(0%); }
+  to   { transform: translateY(0);    filter: opacity(100%); }
+}
+
+@keyframes slideUpOut {
+  from { transform: translateY(0);    filter: opacity(100%); }
+  to   { transform: translateY(100%); filter: opacity(0%); }
+}
+
+@keyframes lowerThirdIn {
+  0%   { clip-path: inset(0 100% 0 0); filter: opacity(0%); }
+  30%  { filter: opacity(100%); }
+  100% { clip-path: inset(0 0 0 0);    filter: opacity(100%); }
+}
+
+@keyframes lowerThirdOut {
+  0%   { clip-path: inset(0 0 0 0);    filter: opacity(100%); }
+  70%  { filter: opacity(100%); }
+  100% { clip-path: inset(0 100% 0 0); filter: opacity(0%); }
+}
+
+@keyframes fadeIn {
+  from { filter: opacity(0%); }
+  to   { filter: opacity(100%); }
+}
+
+@keyframes fadeOut {
+  from { filter: opacity(100%); }
+  to   { filter: opacity(0%); }
+}
+
+@keyframes tickerScroll {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(-100%); }
+}
+
+/* --- Animation classes (applied by JS) --- */
+
+.anim-fadeScaleIn    { animation: fadeScaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.anim-fadeScaleOut   { animation: fadeScaleOut 0.4s cubic-bezier(0.4, 0, 1, 1) forwards; }
+.anim-slideInRight   { animation: slideInRight 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.anim-slideOutRight  { animation: slideOutRight 0.35s cubic-bezier(0.4, 0, 1, 1) forwards; }
+.anim-slideInLeft    { animation: slideInLeft 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.anim-slideOutLeft   { animation: slideOutLeft 0.35s cubic-bezier(0.4, 0, 1, 1) forwards; }
+.anim-slideDown      { animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.anim-slideDownOut   { animation: slideDownOut 0.4s cubic-bezier(0.4, 0, 1, 1) forwards; }
+.anim-slideUp        { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.anim-slideUpOut     { animation: slideUpOut 0.4s cubic-bezier(0.4, 0, 1, 1) forwards; }
+.anim-lowerThirdIn   { animation: lowerThirdIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.anim-lowerThirdOut  { animation: lowerThirdOut 0.5s cubic-bezier(0.4, 0, 1, 1) forwards; }
+.anim-fadeIn         { animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.anim-fadeOut        { animation: fadeOut 0.3s cubic-bezier(0.4, 0, 1, 1) forwards; }
+
+/* ============================================================
+   Debug Panel (only visible with ?debug=1)
+   ============================================================ */
+
+#debug-panel {
+  display: none;
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.82);
+  color: #a0ffa0;
+  font: 11px/1.5 'Courier New', monospace;
+  padding: 8px 12px;
+  border-radius: 6px;
+  z-index: 9999;
+  pointer-events: none;
+  min-width: 200px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#debug-panel.visible {
+  display: block;
+}
+
+#debug-panel .status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+#debug-panel .status-dot.connected    { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+#debug-panel .status-dot.disconnected { background: #ef4444; box-shadow: 0 0 6px #ef4444; }

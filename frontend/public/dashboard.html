@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ad Overlay — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <!-- ── Top Bar ─────────────────────────────────────── -->
+  <header id="topbar">
+    <div class="topbar-left">
+      <div class="logo-mark"></div>
+      <h1>Ad Overlay</h1>
+      <span class="badge" id="conn-badge">Connecting...</span>
+    </div>
+    <div class="topbar-right">
+      <div class="overlay-url-group">
+        <label>Overlay URL</label>
+        <div class="url-copy-row">
+          <input type="text" id="overlay-url" readonly>
+          <button id="copy-url-btn" class="btn btn-ghost" title="Copy URL">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 3H4a1 1 0 00-1 1v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <button id="panic-btn" class="btn btn-danger">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v8M4.5 3.5L8 1l3.5 2.5M3 14h10a1 1 0 001-1V8a1 1 0 00-1-1H3a1 1 0 00-1 1v5a1 1 0 001 1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Hide All
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main Layout ─────────────────────────────────── -->
+  <main id="app">
+    <!-- Left Panel: Ad Library -->
+    <aside id="sidebar">
+      <div class="sidebar-section">
+        <div class="section-header">
+          <h2>Ad Library</h2>
+          <span class="ad-count" id="ad-count">0</span>
+        </div>
+
+        <!-- Upload Zone -->
+        <div id="upload-zone" class="upload-zone">
+          <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+          <div class="upload-content">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Drop image or click to upload</span>
+            <span class="upload-hint">PNG, JPG, GIF, WebP &middot; Max 2MB</span>
+          </div>
+          <div class="upload-progress" id="upload-progress"></div>
+        </div>
+
+        <!-- Ad List -->
+        <div id="ad-list" class="ad-list"></div>
+      </div>
+
+      <!-- Rotation Panel -->
+      <div class="sidebar-section" id="rotation-section">
+        <div class="section-header">
+          <h2>Auto-Rotation</h2>
+          <label class="toggle-switch">
+            <input type="checkbox" id="rotation-toggle">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="rotation-controls" id="rotation-controls">
+          <div class="field-row">
+            <label>Interval</label>
+            <div class="interval-group">
+              <input type="range" id="rotation-interval" min="5" max="1800" value="60" step="5">
+              <span id="rotation-interval-label">1m</span>
+            </div>
+          </div>
+          <div class="rotation-pool-header">
+            <label>Pool</label>
+            <span class="pool-hint">Click ads to add/remove from rotation</span>
+          </div>
+          <div id="rotation-pool" class="rotation-pool">
+            <span class="empty-hint">Add ads to create a rotation pool</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Keyboard Shortcuts -->
+      <div class="sidebar-section shortcuts-section">
+        <div class="section-header">
+          <h2>Shortcuts</h2>
+        </div>
+        <div class="shortcuts-list">
+          <div class="shortcut"><kbd>1</kbd>-<kbd>9</kbd> <span>Toggle ad by #</span></div>
+          <div class="shortcut"><kbd>Space</kbd> <span>Toggle selected</span></div>
+          <div class="shortcut"><kbd>Esc</kbd> <span>Hide all</span></div>
+          <div class="shortcut"><kbd>R</kbd> <span>Toggle rotation</span></div>
+          <div class="shortcut"><kbd>Arrows</kbd> <span>Move ad (Shift=1px)</span></div>
+          <div class="shortcut"><kbd>Del</kbd> <span>Delete selected</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Panel: Preview + Controls -->
+    <section id="main-panel">
+      <!-- Preview Canvas -->
+      <div class="preview-wrapper">
+        <div class="preview-label">
+          <span>Stream Preview</span>
+          <div class="preview-label-right">
+            <select id="video-source" class="video-source-select">
+              <option value="none">No video</option>
+              <option value="obs">OBS Virtual Camera</option>
+              <option value="webcam">Webcam</option>
+              <option value="screen">Screen Capture</option>
+            </select>
+            <span class="preview-dims">1920 &times; 1080</span>
+          </div>
+        </div>
+        <div id="preview-canvas" class="preview-canvas">
+          <video id="preview-video" autoplay muted playsinline></video>
+          <iframe id="preview-overlay" frameborder="0" allowtransparency="true"></iframe>
+          <div class="preview-grid"></div>
+          <div id="preview-ads"></div>
+          <!-- Safe zone indicators -->
+          <div class="safe-zone safe-zone-facecam" title="Facecam zone">
+            <span>CAM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preset Zones -->
+      <div class="presets-bar" id="presets-bar">
+        <span class="presets-label">Snap to:</span>
+        <button class="btn btn-preset" data-preset="corner-tl">Corner TL</button>
+        <button class="btn btn-preset" data-preset="corner-tr">Corner TR</button>
+        <button class="btn btn-preset" data-preset="corner-bl">Corner BL</button>
+        <button class="btn btn-preset" data-preset="corner-br">Corner BR</button>
+        <button class="btn btn-preset" data-preset="lower-third">Lower Third</button>
+        <button class="btn btn-preset" data-preset="popup-right">Popup R</button>
+        <button class="btn btn-preset" data-preset="popup-left">Popup L</button>
+        <button class="btn btn-preset" data-preset="banner-top">Banner Top</button>
+        <button class="btn btn-preset" data-preset="banner-bottom">Banner Bot</button>
+      </div>
+
+      <!-- Selected Ad Controls -->
+      <div id="ad-controls" class="ad-controls hidden">
+        <div class="controls-header">
+          <h3 id="selected-ad-name">—</h3>
+          <div class="controls-actions">
+            <button id="ctrl-show" class="btn btn-primary">Show Now</button>
+            <button id="ctrl-hide" class="btn btn-ghost">Hide</button>
+            <button id="ctrl-delete" class="btn btn-ghost btn-delete-small">Delete</button>
+          </div>
+        </div>
+        <div class="controls-body">
+          <div class="field-group">
+            <div class="field">
+              <label for="ctrl-name">Name</label>
+              <input type="text" id="ctrl-name" maxlength="100" placeholder="Ad name">
+            </div>
+            <div class="field">
+              <label for="ctrl-format">Format</label>
+              <select id="ctrl-format">
+                <option value="corner-logo">Corner Logo</option>
+                <option value="popup">Popup</option>
+                <option value="lower-third">Lower Third</option>
+                <option value="banner">Banner</option>
+                <option value="ticker">Ticker</option>
+                <option value="takeover">Takeover</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="ctrl-duration">Duration (sec)</label>
+              <input type="number" id="ctrl-duration" min="0" max="300" value="0" step="1">
+              <span class="field-hint">0 = persistent</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="field field-pos">
+              <label>Position</label>
+              <div class="pos-inputs">
+                <div><span>X</span><input type="number" id="ctrl-x" min="0" max="1920"></div>
+                <div><span>Y</span><input type="number" id="ctrl-y" min="0" max="1080"></div>
+                <div><span>W</span><input type="number" id="ctrl-w" min="10" max="1920"></div>
+                <div><span>H</span><input type="number" id="ctrl-h" min="10" max="1080"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 8v8m-4-4h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <p>Upload an image to create your first ad</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
