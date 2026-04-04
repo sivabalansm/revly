@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>OBS Ad Overlay</title>
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <div id="ad-container"></div>
+  <div id="detection-container"></div>
+  <div id="debug-panel">
+    <div><span class="status-dot disconnected" id="debug-dot"></span><span id="debug-conn">Disconnected</span></div>
+    <div>FPS: <span id="debug-fps">0</span> | Ads: <span id="debug-ads">0</span></div>
+    <div>Last update: <span id="debug-last">—</span></div>
+    <div>Mem: <span id="debug-mem">—</span></div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="overlay.js"></script>
+</body>
+</html>
