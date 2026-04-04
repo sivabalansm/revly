@@ -19,12 +19,32 @@ html, body {
   font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* --- AI Video Background (MJPEG from Python pipeline) --- */
+#ai-video-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  object-fit: cover;
+  z-index: 0;
+  display: none;
+  pointer-events: none;
+}
+
+#ai-video-bg.active {
+  display: block;
+}
+
 /* --- Containers --- */
 #ad-container {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 1920px;
   height: 1080px;
   pointer-events: none;
+  z-index: 10;
 }
 
 #detection-container {
@@ -34,7 +54,7 @@ html, body {
   width: 1920px;
   height: 1080px;
   pointer-events: none;
-  z-index: 100;
+  z-index: 5;
 }
 
 /* --- Ad slots (all formats) --- */

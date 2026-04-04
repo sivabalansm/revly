@@ -27,6 +27,7 @@
 
   // Video preview
   let currentStream = null;
+  let livePreviewActive = false;
 
   const connBadge      = $('#conn-badge');
   const overlayUrlInput = $('#overlay-url');
@@ -104,7 +105,8 @@
 
     // Set overlay URL
     const base = window.location.origin;
-    overlayUrlInput.value = `${base}/overlay.html?token=${token}`;
+    const overlayBaseUrl = `${base}/overlay.html?token=${token}`;
+    overlayUrlInput.value = overlayBaseUrl;
 
     // Connect socket
     connectSocket();
@@ -397,6 +399,29 @@
     // Video source selector
     $('#video-source').addEventListener('change', onVideoSourceChange);
 
+    // Detection settings
+    $('#detect-apply').addEventListener('click', applyDetectionObject);
+    $('#detect-object').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') applyDetectionObject();
+    });
+    $('#detect-image-btn').addEventListener('click', () => $('#detect-image-input').click());
+    $('#detect-image-input').addEventListener('change', uploadDetectionImage);
+
+    // Preset image clicks (use delegation to handle clicks on child img/span)
+    var detectPresets = document.querySelector('.detect-presets');
+    console.log('[Dashboard] detect-presets element:', detectPresets ? 'FOUND' : 'NOT FOUND');
+    if (detectPresets) {
+      detectPresets.addEventListener('click', (e) => {
+        console.log('[Dashboard] Preset clicked:', e.target.tagName, e.target.closest('.detect-preset[data-img]')?.dataset?.img);
+        var preset = e.target.closest('.detect-preset[data-img]');
+        if (preset) {
+          selectDetectionImage(preset.dataset.img);
+        }
+      });
+    }
+
+    loadDetectionConfig();
+
     // Rotation interval — also update on change (mouseup on slider)
     rotationInterval.addEventListener('change', () => {
       if (rotation.active) {
@@ -498,11 +523,24 @@
   function recalcCanvasScale() {
     const rect = previewCanvas.getBoundingClientRect();
     canvasScale = rect.width / 1920;
+
+    // Scale the overlay iframe to fit the preview canvas
+    const overlayIframe = $('#preview-overlay');
+    if (overlayIframe) {
+      overlayIframe.style.transform = `scale(${canvasScale})`;
+    }
   }
 
   function renderPreviewAds() {
     recalcCanvasScale();
     previewAds.innerHTML = '';
+
+    // When live preview is active, CSS class hides all editor overlays
+    if (livePreviewActive) {
+      previewCanvas.classList.add('live-preview');
+      return;
+    }
+    previewCanvas.classList.remove('live-preview');
 
     ads.forEach((ad) => {
       const el = document.createElement('div');
@@ -798,21 +836,87 @@
     const overlayIframe = $('#preview-overlay');
 
     // Stop existing stream
+    const mjpegImg = $('#preview-mjpeg');
+
+    // Stop existing stream
     if (currentStream) {
       currentStream.getTracks().forEach((t) => t.stop());
       currentStream = null;
     }
     video.srcObject = null;
     video.classList.remove('active');
+    mjpegImg.classList.remove('active');
+    mjpegImg.src = '';
     overlayIframe.classList.remove('active');
+    livePreviewActive = false;
+    // Reset overlay URL to non-AI version
+    overlayUrlInput.value = overlayUrlInput.value.replace(/&ai=1|&moondream=1/g, '');
+    renderPreviewAds();
 
     if (source === 'none') return;
 
     try {
+      // Moondream AI Camera — MJPEG stream from live.py
+      if (source === 'moondream') {
+        try {
+          const health = await fetch('/api/moondream-health');
+          const data = await health.json();
+          if (!data.running) throw new Error('not running');
+        } catch (e) {
+          toast('Moondream not running. Start: cd ~/Desktop/live_stream && python3 live.py', 'error');
+          $('#video-source').value = 'none';
+          return;
+        }
+
+        mjpegImg.src = '/api/moondream-stream';
+        mjpegImg.classList.add('active');
+
+        // Update overlay URL for Moondream mode
+        overlayUrlInput.value = overlayUrlInput.value.replace(/&ai=1|&moondream=1/g, '') + '&moondream=1';
+
+        // Show overlay iframe on top for manual ads
+        overlayIframe.src = overlayUrlInput.value;
+        overlayIframe.classList.add('active');
+        livePreviewActive = true;
+        renderPreviewAds();
+
+        toast('Moondream AI active — copy the Overlay URL into OBS', 'success');
+        return;
+      }
+
+      // AI Camera — MJPEG stream from Python YOLO pipeline
+      if (source === 'ai') {
+        // Check if MJPEG stream is available via proxy
+        try {
+          const health = await fetch('/api/ai-health');
+          const data = await health.json();
+          if (!data.running) throw new Error('not running');
+        } catch (e) {
+          toast('AI Camera not running. Start: python3 demo.py --stream --conf 0.3', 'error');
+          $('#video-source').value = 'none';
+          return;
+        }
+
+        mjpegImg.src = '/api/ai-stream';
+        mjpegImg.classList.add('active');
+
+        // Update the overlay URL to include AI mode
+        // This is the URL the streamer pastes into OBS
+        overlayUrlInput.value = overlayUrlInput.value.replace(/&ai=1/g, '') + '&ai=1';
+
+        // Show overlay iframe on top for manual ads (with AI mode)
+        overlayIframe.src = overlayUrlInput.value;
+        overlayIframe.classList.add('active');
+        livePreviewActive = true;
+        renderPreviewAds();
+
+        toast('AI Camera active — copy the Overlay URL into OBS', 'success');
+        return;
+      }
+
       let stream;
 
       if (source === 'obs') {
-        // OBS Virtual Camera — shows the full composited OBS output
         const devices = await navigator.mediaDevices.enumerateDevices();
         const obsDevice = devices.find(
           (d) => d.kind === 'videoinput' && d.label.toLowerCase().includes('obs')
@@ -822,7 +926,6 @@
             video: { deviceId: { exact: obsDevice.deviceId }, width: 1920, height: 1080 },
           });
         } else {
-          // Fallback: let user pick — OBS Virtual Camera should appear in the list
           stream = await navigator.mediaDevices.getUserMedia({
             video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
           });
@@ -836,7 +939,6 @@
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
         });
-        // User cancelled the screen picker
         if (!stream) return;
       }
 
@@ -844,17 +946,23 @@
       video.srcObject = stream;
       video.classList.add('active');
 
-      // Show the overlay iframe on top of the video
-      overlayIframe.src = overlayUrlInput.value;
-      overlayIframe.classList.add('active');
+      // Show overlay iframe for webcam/screen (not OBS — already composited)
+      if (source !== 'obs') {
+        overlayIframe.src = overlayUrlInput.value;
+        overlayIframe.classList.add('active');
+      }
+      livePreviewActive = true;
+      renderPreviewAds();
 
-      // Handle stream ending (user stops screen share)
+      // Handle stream ending
       stream.getTracks().forEach((track) => {
         track.onended = () => {
           video.classList.remove('active');
           overlayIframe.classList.remove('active');
           $('#video-source').value = 'none';
           currentStream = null;
+          livePreviewActive = false;
+          renderPreviewAds();
         };
       });
 
@@ -868,6 +976,111 @@
       }
       $('#video-source').value = 'none';
     }
+  }
+
+  // ============================================================
+  // Detection Config
+  // ============================================================
+
+  async function loadDetectionConfig() {
+    try {
+      const res = await fetch('/api/detection-config');
+      const config = await res.json();
+      $('#detect-object').value = config.object_name || '';
+      // Highlight selected preset image
+      if (config.replacement_image) {
+        highlightPresetImage(config.replacement_image);
+      }
+    } catch (e) {
+      // Ignore — detection config is optional
+    }
+  }
+
+  function highlightPresetImage(url) {
+    document.querySelectorAll('.detect-preset').forEach((el) => {
+      if (el.dataset.img) {
+        el.classList.toggle('selected', el.dataset.img === url);
+      }
+    });
+  }
+
+  async function selectDetectionImage(url) {
+    console.log('[Dashboard] selectDetectionImage:', url);
+    highlightPresetImage(url);
+    try {
+      const res = await fetch('/api/detection-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replacement_image: url }),
+      });
+      const data = await res.json();
+      console.log('[Dashboard] Config response:', data);
+      toast('Replacement image set', 'success');
+    } catch (e) {
+      console.error('[Dashboard] selectDetectionImage error:', e);
+      toast('Failed to update image', 'error');
+    }
+  }
+
+  async function applyDetectionObject() {
+    const objectName = $('#detect-object').value.trim();
+    if (!objectName) {
+      toast('Enter an object name', 'error');
+      return;
+    }
+    try {
+      const res = await fetch('/api/detection-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ object_name: objectName }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast('Now detecting: ' + objectName, 'success');
+      } else {
+        toast(data.error || 'Failed to update', 'error');
+      }
+    } catch (e) {
+      toast('Failed to update detection config', 'error');
+    }
+  }
+
+  async function uploadDetectionImage() {
+    const file = $('#detect-image-input').files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast('File too large (max 2MB)', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+
+      // Update preview
+      const preview = $('#detect-image-preview');
+      preview.innerHTML = '<img src="' + escHtml(data.url) + '" alt="">';
+
+      // Save to detection config
+      await fetch('/api/detection-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replacement_image: data.url }),
+      });
+
+      // Deselect all presets (custom upload)
+      document.querySelectorAll('.detect-preset').forEach((el) => el.classList.remove('selected'));
+      toast('Replacement image updated', 'success');
+    } catch (e) {
+      toast('Failed to upload image', 'error');
+    }
+
+    $('#detect-image-input').value = '';
   }
 
   // ============================================================

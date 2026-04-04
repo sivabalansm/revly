@@ -5,6 +5,7 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 // ============================================================
 // Setup
@@ -22,8 +23,103 @@ const PORT = process.env.PORT || 3000;
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { etag: false, maxAge: 0 }));
 app.use(express.json());
+
+// Proxy the MJPEG stream from the Python AI camera (localhost:8765)
+// so the browser can access it without CORS issues
+app.get('/api/ai-stream', (req, res) => {
+  const http = require('http');
+  const proxyReq = http.get('http://127.0.0.1:8765/stream', (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', () => {
+    res.status(502).json({ error: 'AI camera not running' });
+  });
+  req.on('close', () => proxyReq.destroy());
+});
+
+// Proxy the MJPEG stream from Moondream (localhost:5001)
+app.get('/api/moondream-stream', (req, res) => {
+  const http = require('http');
+  const proxyReq = http.get('http://127.0.0.1:5001/video_feed', (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', () => {
+    res.status(502).json({ error: 'Moondream not running' });
+  });
+  req.on('close', () => proxyReq.destroy());
+});
+
+app.get('/api/moondream-health', (_req, res) => {
+  const http = require('http');
+  const check = http.get('http://127.0.0.1:5001/', (r) => {
+    res.json({ running: r.statusCode === 200 });
+  });
+  check.on('error', () => res.json({ running: false }));
+});
+
+// ── Moondream detection config ──────────────────────────
+const MOONDREAM_CONFIG_PATH = path.join(__dirname, '..', 'Desktop', 'live_stream', 'config.json');
+// Try multiple possible locations for the config
+function getMoondreamConfigPath() {
+  const paths = [
+    path.resolve(__dirname, '..', 'config.json'),                          // bagelhacks2/config.json (if live_stream is here)
+    path.resolve(os.homedir(), 'Desktop', 'live_stream', 'config.json'),   // ~/Desktop/live_stream/config.json
+  ];
+  for (const p of paths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return paths[1]; // default to Desktop location
+}
+
+app.get('/api/detection-config', (_req, res) => {
+  try {
+    const configPath = getMoondreamConfigPath();
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    res.json(config);
+  } catch (e) {
+    res.json({ object_name: 'cup' });
+  }
+});
+
+app.post('/api/detection-config', (req, res) => {
+  try {
+    const configPath = getMoondreamConfigPath();
+    const liveStreamDir = path.dirname(configPath);
+    const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf-8')) : {};
+    if (req.body.object_name) {
+      config.object_name = req.body.object_name.trim().slice(0, 100);
+    }
+    if (req.body.replacement_image) {
+      config.replacement_image = req.body.replacement_image;
+      // Copy the image to overlay.png in the live_stream folder
+      const srcPath = path.join(__dirname, 'public', req.body.replacement_image);
+      const dstPath = path.join(liveStreamDir, 'overlay.png');
+      if (fs.existsSync(srcPath)) {
+        fs.copyFileSync(srcPath, dstPath);
+        console.log(`[Detection] Copied ${srcPath} -> ${dstPath}`);
+      } else {
+        console.warn(`[Detection] Source image not found: ${srcPath}`);
+      }
+    }
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    console.log(`[Detection] Config updated: ${JSON.stringify(config)}`);
+    res.json({ ok: true, config });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/ai-health', (_req, res) => {
+  const http = require('http');
+  const check = http.get('http://127.0.0.1:8765/health', (r) => {
+    res.json({ running: r.statusCode === 200 });
+  });
+  check.on('error', () => res.json({ running: false }));
+});
 
 // ============================================================
 // Multer — image upload handling
@@ -53,6 +149,12 @@ const upload = multer({
 // ============================================================
 
 const overlays = new Map(); // token -> OverlayState
+const adTimers = new Map(); // adId -> setTimeout handle (duration auto-hide)
+
+function clearAdTimer(adId) {
+  const t = adTimers.get(adId);
+  if (t) { clearTimeout(t); adTimers.delete(adId); }
+}
 
 // Preset zone coordinates (1920x1080)
 const PRESETS = {
@@ -425,8 +527,23 @@ io.on('connection', (socket) => {
     const ad = findAd(s, data.ad_id);
     if (!ad) return;
 
+    // Clear any existing duration timer for this ad
+    clearAdTimer(ad.id);
+
     ad.visible = true;
     broadcast('show_ad', { ad: { ...ad } });
+
+    // If ad has a duration, auto-hide after it expires
+    let duration = ad.duration || 0;
+    if (ad.format === 'takeover' && (duration === 0 || duration > 5000)) duration = 5000;
+    if (duration > 0) {
+      adTimers.set(ad.id, setTimeout(() => {
+        adTimers.delete(ad.id);
+        ad.visible = false;
+        io.to(room).emit('hide_ad', { ad_id: ad.id });
+        console.log(`[Duration] Auto-hid "${ad.name}" after ${duration}ms`);
+      }, duration));
+    }
   });
 
   // --- Hide ad ---
@@ -437,6 +554,7 @@ io.on('connection', (socket) => {
     const ad = findAd(s, data.ad_id);
     if (!ad) return;
 
+    clearAdTimer(ad.id);
     ad.visible = false;
     broadcast('hide_ad', { ad_id: ad.id });
   });
@@ -448,6 +566,7 @@ io.on('connection', (socket) => {
     if (!s || !data) return;
 
     const adId = data.ad_id;
+    clearAdTimer(adId);
     const idx = s.ads.findIndex((a) => a.id === adId);
     if (idx === -1) return;
 
@@ -523,7 +642,7 @@ io.on('connection', (socket) => {
     const s = getState();
     if (!s) return;
 
-    s.ads.forEach((ad) => { ad.visible = false; });
+    s.ads.forEach((ad) => { clearAdTimer(ad.id); ad.visible = false; });
     stopRotation(s);
 
     broadcast('hide_all');
@@ -688,6 +807,9 @@ function shutdown() {
       state.rotation.timerId = null;
     }
   }
+  // Clear all ad duration timers
+  for (const [id, t] of adTimers) { clearTimeout(t); }
+  adTimers.clear();
 
   // Close socket.io then http server
   io.close(() => {

@@ -16,6 +16,8 @@
   const params = new URLSearchParams(window.location.search);
   const TOKEN = params.get('token');
   const DEBUG = params.has('debug');
+  const AI_MODE = params.has('ai');
+  const MOONDREAM_MODE = params.has('moondream');
   const STATE_KEY = 'overlay_state_v1';
   const STATE_MAX_AGE = 60000; // 60s — don't restore stale state
 
@@ -572,12 +574,34 @@
     }
   }, 30000); // Every 30 seconds
 
+  // ── AI Video Background ─────────────────────────────────
+
+  if (AI_MODE || MOONDREAM_MODE) {
+    var aiBg = document.getElementById('ai-video-bg');
+    if (aiBg) {
+      if (MOONDREAM_MODE) {
+        aiBg.src = '/api/moondream-stream';
+        aiBg.onerror = function () {
+          aiBg.src = 'http://localhost:5001/video_feed';
+        };
+        console.log('[Overlay] Moondream video background enabled');
+      } else {
+        aiBg.src = '/api/ai-stream';
+        aiBg.onerror = function () {
+          aiBg.src = 'http://localhost:8765/stream';
+        };
+        console.log('[Overlay] YOLO video background enabled');
+      }
+      aiBg.classList.add('active');
+    }
+  }
+
   // ── Init ────────────────────────────────────────────────
 
   // Recover from localStorage first (instant, before server connects)
   recoverFromStorage();
 
   console.log('[Overlay] Initialized. Token:', TOKEN.slice(0, 8) + '...',
-    'Debug:', DEBUG);
+    'Debug:', DEBUG, 'AI:', AI_MODE);
 
 })();

@@ -85,6 +85,44 @@
         </div>
       </div>
 
+      <!-- Detection Settings -->
+      <div class="sidebar-section" id="detection-section">
+        <div class="section-header">
+          <h2>AI Detection</h2>
+        </div>
+        <div class="detection-controls">
+          <div class="field">
+            <label for="detect-object">Object to detect</label>
+            <div class="detect-input-row">
+              <input type="text" id="detect-object" placeholder="e.g. cup, bottle, can" value="">
+              <button id="detect-apply" class="btn btn-primary btn-sm">Apply</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Replacement image</label>
+            <div class="detect-presets">
+              <div class="detect-preset" data-img="/uploads/cocacola.png" title="Coca-Cola">
+                <img src="/uploads/cocacola.png" alt="Coca-Cola">
+                <span>Coca-Cola</span>
+              </div>
+              <div class="detect-preset" data-img="/uploads/nike-backpack.png" title="Nike Backpack">
+                <img src="/uploads/nike-backpack.png" alt="Nike Backpack">
+                <span>Nike</span>
+              </div>
+              <div class="detect-preset" data-img="/uploads/adidas-hoodie.png" title="Adidas Hoodie">
+                <img src="/uploads/adidas-hoodie.png" alt="Adidas Hoodie">
+                <span>Adidas</span>
+              </div>
+              <div class="detect-preset detect-preset-upload" id="detect-image-btn" title="Upload custom">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Custom</span>
+              </div>
+            </div>
+            <input type="file" id="detect-image-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+          </div>
+        </div>
+      </div>
+
       <!-- Keyboard Shortcuts -->
       <div class="sidebar-section shortcuts-section">
         <div class="section-header">
@@ -110,6 +148,8 @@
           <div class="preview-label-right">
             <select id="video-source" class="video-source-select">
               <option value="none">No video</option>
+              <option value="moondream">AI Camera (Moondream)</option>
+              <option value="ai">AI Camera (YOLO)</option>
               <option value="obs">OBS Virtual Camera</option>
               <option value="webcam">Webcam</option>
               <option value="screen">Screen Capture</option>
@@ -119,6 +159,7 @@
         </div>
         <div id="preview-canvas" class="preview-canvas">
           <video id="preview-video" autoplay muted playsinline></video>
+          <img id="preview-mjpeg" src="" alt="">
           <iframe id="preview-overlay" frameborder="0" allowtransparency="true"></iframe>
           <div class="preview-grid"></div>
           <div id="preview-ads"></div>

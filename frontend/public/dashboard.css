@@ -535,6 +535,95 @@ html, body {
 .pool-chip:hover { border-color: var(--accent); color: var(--accent-text); }
 .pool-chip.in-pool { background: var(--accent-muted); border-color: var(--accent); color: var(--accent-text); }
 
+/* ── Detection Settings ──────────────────────────────── */
+
+.detection-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detect-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.detect-input-row input {
+  flex: 1;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  outline: none;
+}
+
+.detect-input-row input:focus { border-color: var(--border-focus); }
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.detect-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.detect-preset {
+  width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.detect-preset:hover {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.detect-preset.selected {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.25);
+}
+
+.detect-preset img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+.detect-preset span {
+  font-size: 9px;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.detect-preset-upload {
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
+.detect-preset-upload svg {
+  color: var(--text-tertiary);
+}
+
 /* ── Keyboard Shortcuts ──────────────────────────────── */
 
 .shortcuts-section {
@@ -589,7 +678,8 @@ kbd {
 /* ── Preview Canvas ──────────────────────────────────── */
 
 .preview-wrapper {
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-height: 0;
 }
 
 .preview-label {
@@ -635,9 +725,9 @@ kbd {
 .video-source-select:focus { border-color: var(--border-focus); }
 
 .preview-canvas {
-  width: 100%;
+  max-width: 100%;
+  height: 55vh;
   aspect-ratio: 16 / 9;
-  max-height: min(480px, 50vh);
   background: #0a0b0e;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -660,11 +750,28 @@ kbd {
   display: block;
 }
 
-#preview-overlay {
+#preview-mjpeg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  display: none;
+  background: #000;
+}
+
+#preview-mjpeg.active {
+  display: block;
+}
+
+#preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: top left;
   z-index: 1;
   pointer-events: none;
   display: none;
@@ -673,6 +780,13 @@ kbd {
 
 #preview-overlay.active {
   display: block;
+}
+
+/* When live preview is active, hide all the editor overlays */
+.preview-canvas.live-preview .preview-grid,
+.preview-canvas.live-preview #preview-ads,
+.preview-canvas.live-preview .safe-zone {
+  display: none !important;
 }
 
 .preview-grid {
