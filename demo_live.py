@@ -165,6 +165,14 @@ def main():
     )
     delayed_output.start(mjpeg_port=args.port)
 
+    recording_path = os.path.join(output_dir, "stream_recording.mp4")
+    fourcc = cv2.VideoWriter.fourcc(*"mp4v")
+    recorder = cv2.VideoWriter(
+        recording_path, fourcc, actual_fps, (args.width, args.height)
+    )
+    recording_started = False
+    print(f"  Recording delayed stream to: {recording_path}")
+
     detector = DetectionEngine(
         model_name="yolov8n.pt",
         confidence_threshold=args.conf,
@@ -225,6 +233,15 @@ def main():
 
             delayed_frame = delayed_output.get_frame()
             if delayed_frame is not None:
+                if not recording_started:
+                    h_rec, w_rec = delayed_frame.shape[:2]
+                    recorder.release()
+                    recorder = cv2.VideoWriter(
+                        recording_path, fourcc, actual_fps, (w_rec, h_rec)
+                    )
+                    recording_started = True
+                    print(f"  [REC] Recording started ({w_rec}x{h_rec})")
+                recorder.write(delayed_frame)
                 dh, dw = delayed_frame.shape[:2]
                 preview_w = 320
                 preview_h = int(dh * preview_w / dw)
@@ -269,8 +286,12 @@ def main():
 
     detector.stop()
     delayed_output.stop()
+    recorder.release()
     cap.release()
     cv2.destroyAllWindows()
+    if recording_started:
+        size_mb = os.path.getsize(recording_path) / (1024 * 1024)
+        print(f"  Recording saved: {recording_path} ({size_mb:.1f} MB)")
     print("Done.")
 
 
