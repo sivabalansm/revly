@@ -1,0 +1,5 @@
+ulw I will be using wan 2.7 video to video and edit a 5-10 second segment of the video. We want to keep it on the cheaper side. Here is some reference. Fetch it, use playwright to look into if you don't have enough info about how the api works. https://modelstudio.console.alibabacloud.com/ap-southeast-1?spm=a2ty_o05.31384571.0.0.54719f6b8rivP4&tab=api#/api/?type=model&url=3021842. Since wan 2.7 runs take a while to finish 1 - 2 min, I need the stream to be delayed to be able to stich the video together in time with the ad. The ad will replace the segment it took out to edit. Open to suggestions and any better implementation you might know of.
+
+References you can use:
+~/sc/halftime
+./prompt.txt - for the wan 2.7 prompt that I used and was decent.
